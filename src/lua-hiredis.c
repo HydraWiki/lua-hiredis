@@ -435,17 +435,42 @@ static int lhiredis_connect(lua_State * L)
 {
   luahiredis_Connection * pResult = NULL;
   redisContext * pContext = NULL;
+  struct timeval timeout;
+  int msec = 0;
 
   const char * host_or_socket = luaL_checkstring(L, 1);
 
-  /* TODO: Support Timeout and UnixTimeout flavors */
+  if (!lua_isnoneornil(L, 3))
+  {
+    msec = luaL_checkint(L, 3);
+    if (msec > 0)
+    {
+      timeout.tv_sec = msec / 1000;
+      timeout.tv_usec = (msec % 1000) * 1000;
+    }
+  }
+
   if (lua_isnoneornil(L, 2))
   {
-    pContext = redisConnectUnix(host_or_socket);
+    if (msec > 0)
+    {
+      pContext = redisConnectUnixWithTimeout(host_or_socket, timeout);
+    }
+    else
+    {
+      pContext = redisConnectUnix(host_or_socket);
+    }
   }
   else
   {
-    pContext = redisConnect(host_or_socket, luaL_checkint(L, 2));
+    if (msec > 0)
+    {
+      pContext = redisConnectWithTimeout(host_or_socket, luaL_checkint(L, 2), timeout);
+    }
+    else
+    {
+      pContext = redisConnect(host_or_socket, luaL_checkint(L, 2));
+    }
   }
 
   if (!pContext)
